@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Delta Panel</title>
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --card: #ffffff;
+    --text: #111111;
+    --muted: #6b7280;
+    --green: #22c55e;
+    --red: #ef4444;
+    --purple: #7C3AED;
+    --purple-light: #b794f6;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #1a1a1f;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .screen.hidden {
+    opacity: 0;
+    transform: scale(0.96);
+    pointer-events: none;
+  }
+
+  /* === KEY GATE === */
+  #gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: radial-gradient(circle at 50% 30%, #1e1b2e 0%, #0a0a0c 70%);
+  }
+  .gate-box {
+    width: 100%;
+    max-width: 380px;
+    background: var(--card);
+    border-radius: 18px;
+    padding: 32px 24px 26px;
+    box-shadow: 0 20px 60px rgba(124, 58, 237, 0.25),
+                0 0 0 1px rgba(124, 58, 237, 0.15);
+    text-align: center;
+    animation: gateIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes gateIn {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .gate-logo {
+    width: 64px; height: 64px;
+    margin: 0 auto 18px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #7C3AED 0%, #a855f7 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: #fff;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+    animation: logoPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes logoPulse {
+    0%, 100% { box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4); }
+    50% { box-shadow: 0 8px 36px rgba(124, 58, 237, 0.7); }
+  }
+  .gate-title {
+    font-size: 20px; font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text);
+    margin: 0 0 6px;
+    text-transform: uppercase;
+  }
+  .gate-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    font-family: ui-monospace, monospace;
+  }
+  .key-input {
+    width: 100%;
+    background: #f9fafb;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 15px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: var(--text);
+    outline: none;
+    transition: all 0.15s ease;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .key-input::placeholder {
+    color: #9ca3af;
+    letter-spacing: 0.03em;
+  }
+  .key-input:focus {
+    border-color: var(--purple);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+  }
+  .key-input.error {
+    border-color: var(--red);
+    background: #fef2f2;
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+  .gate-btn {
+    width: 100%;
+    margin-top: 14px;
+    background: linear-gradient(135deg, #7C3AED 0%, #a855f7 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+  }
+  .gate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(124, 58, 237, 0.5); }
+  .gate-btn:active { transform: translateY(0); box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4); }
+  .gate-btn:disabled {
+    background: #d1d5db;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .gate-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 14px;
+    font-family: ui-monospace, monospace;
+    min-height: 16px;
+  }
+  .gate-hint.error { color: var(--red); }
+  .gate-hint.ok { color: var(--green); }
+
+  /* === MAIN PANEL === */
+  #main {
+    padding: 18px 14px 60px;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+  .topbar-left {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar-logo {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #7C3AED 0%, #a855f7 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  }
+  .topbar-title {
+    font-size: 13px; font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--purple-light);
+    text-transform: uppercase;
+  }
+  .exit-btn {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .exit-btn:hover { background: rgba(239, 68, 68, 0.25); }
+  .key-badge {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: ui-monospace, monospace;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .key-badge b { color: var(--purple-light); }
+
+  .panel {
+    background: var(--card);
+    border: 2px solid #fecaca;
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15),
+                0 8px 32px rgba(239, 68, 68, 0.18);
+    padding: 20px 18px;
+  }
+  .status-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05); }
+  }
+  .status-text { font-size: 15px; font-weight: 700; color: var(--text); }
+  .time-row {
+    font-size: 15px; font-weight: 700; color: var(--text);
+    margin-bottom: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 22px; }
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 4px;
+    cursor: pointer; border-radius: 10px;
+    transition: background 0.12s ease;
+    user-select: none;
+  }
+  .item:hover { background: #f9fafb; }
+  .item:active { background: #f3f4f6; }
+  .check {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    background: #fff;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .check svg {
+    width: 14px; height: 14px;
+    stroke: #fff; stroke-width: 3.5; fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+    opacity: 0; transform: scale(0.5);
+    transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .item.on .check { border-color: var(--green); background: var(--green); }
+  .item.on .check svg { opacity: 1; transform: scale(1); }
+  .item.flash-on .check { animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .item.flash-off .check { animation: shrink 0.3s ease; }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  @keyframes shrink {
+    0% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .item-name {
+    font-size: 15px; font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.01em;
+    flex: 1; line-height: 1.3;
+  }
+  .item-name .pipe { color: #9ca3af; font-weight: 400; margin: 0 2px; }
+  .footer { text-align: center; margin-top: 8px; }
+  .coder {
+    font-size: 12px; font-style: italic;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .spinner {
+    width: 42px; height: 42px;
+    margin: 0 auto 10px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%) translateY(80px);
+    background: #111; color: #fff;
+    padding: 10px 20px; border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+    transition: transform 0.25s ease;
+    pointer-events: none; z-index: 999;
+    font-family: ui-monospace, monospace;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.on { background: var(--green); }
+  .toast.off { background: #4b5563; }
+  .toast.err { background: var(--red); }
+
+  .audio-hint {
+    text-align: center; font-size: 10px;
+    color: var(--muted); margin-top: 12px;
+    font-family: ui-monospace, monospace;
+  }
+  .audio-hint.ready { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="screen" id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">🔑</div>
+    <div class="gate-title">Delta Panel</div>
+    <div class="gate-sub">Nhập key để tiếp tục</div>
+    <input type="text" class="key-input" id="keyInput" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="32">
+    <button class="gate-btn" id="keyBtn">XÁC NHẬN</button>
+    <div class="gate-hint" id="gateHint"></div>
+  </div>
+</div>
+
+<div class="screen hidden" id="main">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-logo">⚡</div>
+        <div class="topbar-title">Delta Panel</div>
+      </div>
+      <button class="exit-btn" id="exitBtn">Thoát</button>
+    </div>
+    <div class="key-badge">Key: <b id="keyBadge">—</b></div>
+
+    <div class="panel">
+      <div class="status-row">
+        <div class="dot"></div>
+        <div class="status-text">Trạng thái: Online</div>
+      </div>
+      <div class="time-row">Thời gian: <span id="clock">00:00:00</span></div>
+
+      <div class="list" id="list"></div>
+
+      <div class="footer">
+        <div class="coder">Coder: BY @Dinh Đức Nam</div>
+        <div class="spinner"></div>
+        <div class="loading-text">Đang dán files...</div>
+      </div>
+    </div>
+    <div class="audio-hint" id="audioHint">Chạm để kích hoạt âm thanh</div>
+  </div>
+</div>
+
+<div class="toast" id="toast">—</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var NS = 'delta_panel_v2';
+  var KEY_NS = 'delta_panel_key';
+
+  var ITEMS = [
+    { id: 'antiban',    name: 'Antiband Novobom',      def: true  },
+    { id: 'shake',      name: 'Giảm Thiểu Rung Tâm',   def: false },
+    { id: 'fixlag',     name: 'Fix Lag Máy',           def: true  },
+    { id: 'bufffps',    name: 'Buff Fps Game',         def: false },
+    { id: 'aimlock',    name: 'Aimlock Gamer 85%',     def: true  },
+    { id: 'nhetam',     name: 'Nhẹ Tâm V1',            def: false },
+    { id: 'hesot',      name: 'Hesot V2 Antiband',     def: false },
+    { id: 'aimhead',    name: 'Aim Head Max',          def: false },
+    { id: 'dpi',        name: 'DPI',                   def: false },
+    { id: 'skillaim',   name: 'Skill Aim',             def: true  },
+    { id: 'headlockmod',name: 'Head Lock Mods',        def: false },
+    { id: 'headlock',   name: 'Headlock',              def: false }
+  ];
+
+  var state = {};
+  var audioCtx = null;
+  var audioReady = false;
+  var currentKey = '';
+
+  function boot() {
+    var gate = document.getElementById('gate');
+    var main = document.getElementById('main');
+    var keyInput = document.getElementById('keyInput');
+    var keyBtn = document.getElementById('keyBtn');
+    var gateHint = document.getElementById('gateHint');
+    var keyBadge = document.getElementById('keyBadge');
+    var exitBtn = document.getElementById('exitBtn');
+    var list = document.getElementById('list');
+    var clock = document.getElementById('clock');
+    var toast = document.getElementById('toast');
+    var audioHint = document.getElementById('audioHint');
+
+    initState();
+    loadLocal();
+    renderList();
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    function tickClock() {
+      var d = new Date();
+      var h = String(d.getHours()).padStart(2, '0');
+      var m = String(d.getMinutes()).padStart(2, '0');
+      var s = String(d.getSeconds()).padStart(2, '0');
+      clock.textContent = h + ':' + m + ':' + s;
+    }
+
+    function initState() {
+      for (var i = 0; i < ITEMS.length; i++) {
+        state[ITEMS[i].id] = ITEMS[i].def;
+      }
+    }
+
+    function renderList() {
+      var html = '';
+      for (var i = 0; i < ITEMS.length; i++) {
+        var it = ITEMS[i];
+        var on = state[it.id] ? ' on' : '';
+        html += '<div class="item' + on + '" data-id="' + it.id + '">';
+        html += '<div class="check">';
+        html += '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+        html += '</div>';
+        html += '<div class="item-name"><span class="pipe">|</span> ' + it.name + ' <span class="pipe">|</span></div>';
+        html += '</div>';
+      }
+      list.innerHTML = html;
+      var rows = list.querySelectorAll('.item');
+      for (var j = 0; j < rows.length; j++) {
+        rows[j].addEventListener('click', function () {
+          toggleItem(this.getAttribute('data-id'), this);
+        });
+      }
+    }
+
+    function toggleItem(id, el) {
+      ensureAudio();
+      var on = !state[id];
+      state[id] = on;
+      el.classList.toggle('on', on);
+      el.classList.remove('flash-on', 'flash-off');
+      void el.offsetWidth;
+      el.classList.add(on ? 'flash-on' : 'flash-off');
+      if (on) {
+        playOnSound();
+        vibrate([25, 30, 25]);
+        showToast('BẬT: ' + findItem(id).name, 'on');
+      } else {
+        playOffSound();
+        vibrate([15]);
+        showToast('TẮT: ' + findItem(id).name, 'off');
+      }
+      saveLocal();
+    }
+
+    function findItem(id) {
+      for (var i = 0; i < ITEMS.length; i++) {
+        if (ITEMS[i].id === id) return ITEMS[i];
+      }
+      return { name: id };
+    }
+
+    function ensureAudio() {
+      if (audioReady) return;
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) {
+          audioHint.textContent = 'Không hỗ trợ Web Audio';
+          return;
+        }
+        audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        audioReady = true;
+        audioHint.textContent = 'Âm thanh: đã kích hoạt';
+        audioHint.className = 'audio-hint ready';
+      } catch (e) {
+        audioHint.textContent = 'Lỗi audio: ' + e.message;
+      }
+    }
+
+    function playOnSound() {
+      if (!audioCtx) return;
+      var now = audioCtx.currentTime;
+      var osc1 = audioCtx.createOscillator();
+      var gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(660, now);
+      osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.08);
+      gain1.gain.setValueAtTime(0.0001, now);
+      gain1.gain.exponentialRampToValueAtTime(0.28, now + 0.01);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.18);
+
+      var osc2 = audioCtx.createOscillator();
+      var gain2 = audioCtx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(880, now + 0.05);
+      osc2.frequency.exponentialRampToValueAtTime(1760, now + 0.14);
+      gain2.gain.setValueAtTime(0.0001, now + 0.05);
+      gain2.gain.exponentialRampToValueAtTime(0.18, now + 0.06);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.05);
+      osc2.stop(now + 0.26);
+    }
+
+    function playOffSound() {
+      if (!audioCtx) return;
+      var now = audioCtx.currentTime;
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.12);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    }
+
+    function playUnlockSound() {
+      if (!audioCtx) return;
+      var now = audioCtx.currentTime;
+      var notes = [523.25, 659.25, 783.99, 1046.50];
+      for (var i = 0; i < notes.length; i++) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        var t = now + i * 0.07;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(notes[i], t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.22, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      }
+    }
+
+    function playErrorSound() {
+      if (!audioCtx) return;
+      var now = audioCtx.currentTime;
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.setValueAtTime(160, now + 0.08);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    }
+
+    function vibrate(pattern) {
+      if (!('vibrate' in navigator)) return;
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+
+    var toastTimer = null;
+    function showToast(msg, cls) {
+      toast.textContent = msg;
+      toast.className = 'toast show ' + (cls || '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        toast.classList.remove('show');
+      }, 1200);
+    }
+
+    function saveLocal() {
+      try { localStorage.setItem(NS, JSON.stringify(state)); } catch (e) {}
+    }
+    function loadLocal() {
+      try {
+        var raw = localStorage.getItem(NS);
+        if (!raw) return;
+        var obj = JSON.parse(raw);
+        if (!obj) return;
+        for (var k in obj) {
+          if (state.hasOwnProperty(k)) state[k] = !!obj[k];
+        }
+      } catch (e) {}
+    }
+    function saveKey(key) {
+      try { localStorage.setItem(KEY_NS, key); } catch (e) {}
+    }
+    function loadKey() {
+      try { return localStorage.getItem(KEY_NS) || ''; } catch (e) { return ''; }
+    }
+    function clearKey() {
+      try { localStorage.removeItem(KEY_NS); } catch (e) {}
+    }
+
+    function enterPanel(key) {
+      currentKey = key;
+      keyBadge.textContent = maskKey(key);
+      gate.classList.add('hidden');
+      main.classList.remove('hidden');
+      main.scrollTop = 0;
+      saveKey(key);
+    }
+
+    function leavePanel() {
+      gate.classList.remove('hidden');
+      main.classList.add('hidden');
+      clearKey();
+      keyInput.value = '';
+      gateHint.textContent = '';
+      gateHint.className = 'gate-hint';
+    }
+
+    function maskKey(k) {
+      if (k.length <= 6) return k;
+      return k.slice(0, 3) + '•••' + k.slice(-3);
+    }
+
+    function submitKey() {
+      ensureAudio();
+      var v = keyInput.value.trim();
+      if (!v) {
+        keyInput.classList.add('error');
+        gateHint.textContent = 'Key không được để trống';
+        gateHint.className = 'gate-hint error';
+        playErrorSound();
+        vibrate([40, 30, 40]);
+        setTimeout(function () { keyInput.classList.remove('error'); }, 500);
+        return;
+      }
+      if (v.length < 3) {
+        keyInput.classList.add('error');
+        gateHint.textContent = 'Key quá ngắn (tối thiểu 3 ký tự)';
+        gateHint.className = 'gate-hint error';
+        playErrorSound();
+        vibrate([40, 30, 40]);
+        setTimeout(function () { keyInput.classList.remove('error'); }, 500);
+        return;
+      }
+      gateHint.textContent = 'Đang xác thực...';
+      gateHint.className = 'gate-hint ok';
+      keyBtn.disabled = true;
+      setTimeout(function () {
+        keyBtn.disabled = false;
+        gateHint.textContent = 'Key hợp lệ — đang vào...';
+        playUnlockSound();
+        vibrate([20, 40, 20, 40, 60]);
+        setTimeout(function () {
+          enterPanel(v);
+          showToast('Đã vào panel', 'on');
+        }, 350);
+      }, 600);
+    }
+
+    keyBtn.addEventListener('click', submitKey);
+    keyInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') submitKey();
+    });
+    keyInput.addEventListener('input', function () {
+      if (gateHint.classList.contains('error')) {
+        gateHint.textContent = '';
+        gateHint.className = 'gate-hint';
+        keyInput.classList.remove('error');
+      }
+    });
+
+    exitBtn.addEventListener('click', function () {
+      leavePanel();
+      showToast('Đã thoát', 'off');
+    });
+
+    var saved = loadKey();
+    if (saved) {
+      enterPanel(saved);
+    }
+
+    document.addEventListener('touchstart', function once() {
+      ensureAudio();
+      document.removeEventListener('touchstart', once);
+    }, { once: true, passive: true });
+    document.addEventListener('click', function once() {
+      ensureAudio();
+      document.removeEventListener('click', once);
+    }, { once: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
+</body>
+</html>
